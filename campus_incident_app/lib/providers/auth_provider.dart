@@ -34,6 +34,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isStaff => _profile?.isStaff ?? false;
 
   // Actions called by the screens
+
   Future<bool> register({
     required String name,
     required String email,
@@ -61,7 +62,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => _authService.signOut();
 
-  /// Called by the "I have verified my email" button
   Future<bool> checkEmailVerified() async {
     _errorMessage = null;
     _setBusy(true);
@@ -99,7 +99,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Internals
-  /// Runs a login or register action with the same loading and error handling.
+
   Future<bool> _runAuthAction(Future<void> Function() action) async {
     _errorMessage = null;
     _setBusy(true);
@@ -117,13 +117,11 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _setBusy(false);
-    // Whatever happened, bring the app state in line with Firebase.
     await _applyUser(_authService.currentUser);
     return succeeded && _errorMessage == null;
   }
 
   Future<void> _onAuthChanged(User? user) async {
-    // While login or register is running, that method updates the state itself.
     if (_isBusy) return;
     await _applyUser(user);
   }
@@ -140,7 +138,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       // If the profile is missing (for example an interrupted sign-up),
-      // create it now so the person is never locked out.
+      // create it now so the person is never locked out
       _profile =
           await _userRepository.getUser(user.uid) ??
           await _userRepository.createStudentProfile(
@@ -156,7 +154,6 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('Profile load failed: $e');
       _errorMessage =
           'Could not load your profile. Check your connection and try again.';
-      // Signing out triggers _onAuthChanged(null), which shows the login screen.
       await _authService.signOut();
     }
   }
@@ -171,7 +168,6 @@ class AuthProvider extends ChangeNotifier {
     return local.isEmpty ? 'Student' : local;
   }
 
-  /// Turns Firebase error codes into messages a student can understand.
   String _messageForCode(String code) {
     switch (code) {
       case 'invalid-email':
