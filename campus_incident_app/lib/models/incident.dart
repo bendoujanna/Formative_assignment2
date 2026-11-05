@@ -9,7 +9,7 @@ enum IncidentCategory {
   safety,
 }
 
-/// submitted, then in progress, then resolved
+/// submitted, then in progress, then resolved.
 enum IncidentStatus { submitted, inProgress, resolved }
 
 extension IncidentCategoryLabel on IncidentCategory {
@@ -44,7 +44,7 @@ extension IncidentStatusLabel on IncidentStatus {
   }
 }
 
-/// One incident report, stored in incidents/{id} in Firestore
+/// One incident report, stored in incidents/{id} in Firestore.
 class Incident {
   const Incident({
     required this.id,
@@ -116,6 +116,7 @@ class Incident {
 
   bool get hasPhoto => photoUrl != null && photoUrl!.isNotEmpty;
 
+  /// Location as one line, for example "Student residence, Room 204".
   String get fullLocation =>
       locationDetails.isEmpty ? location : '$location, $locationDetails';
 
@@ -150,7 +151,6 @@ class Incident {
     );
   }
 
-  /// The data written when a student submits a new report
   Map<String, dynamic> toCreateMap() {
     return {
       'title': title,

@@ -8,10 +8,10 @@ import '../core/constants.dart';
 class UploadedPhoto {
   const UploadedPhoto({required this.url, required this.path});
 
-  /// Address used to show the picture
+  /// Address used to show the picture.
   final String url;
 
-  /// Location in the bucket, kept so the file can be deleted later
+  /// Location in the bucket, kept so the file can be deleted later.
   final String path;
 }
 

@@ -33,7 +33,9 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isStaff => _profile?.isStaff ?? false;
 
+  // ---------------------------------------------------------------------
   // Actions called by the screens
+  // ---------------------------------------------------------------------
 
   Future<bool> register({
     required String name,
@@ -62,6 +64,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => _authService.signOut();
 
+  /// Called by the "I have verified my email" button.
   Future<bool> checkEmailVerified() async {
     _errorMessage = null;
     _setBusy(true);
@@ -138,7 +141,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       // If the profile is missing (for example an interrupted sign-up),
-      // create it now so the person is never locked out
+      // create it now so the person is never locked out.
       _profile =
           await _userRepository.getUser(user.uid) ??
           await _userRepository.createStudentProfile(

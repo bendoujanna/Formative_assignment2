@@ -12,8 +12,6 @@ class IncidentRepository {
   CollectionReference<Map<String, dynamic>> get _incidents =>
       _db.collection(AppConstants.incidentsCollection);
 
-  /// A student sees only their own reports. The query filter must match the
-  /// security rule, otherwise Firestore refuses the request
   Stream<List<Incident>> watchMyIncidents(String uid) {
     return _incidents
         .where('reporterId', isEqualTo: uid)
@@ -21,7 +19,7 @@ class IncidentRepository {
         .map(_toSortedList);
   }
 
-  /// Staff see every report
+  /// Staff see every report.
   Stream<List<Incident>> watchAllIncidents() {
     return _incidents.snapshots().map(_toSortedList);
   }
@@ -34,7 +32,6 @@ class IncidentRepository {
     await _incidents.doc(incidentId).delete();
   }
 
-  /// Newest first
   List<Incident> _toSortedList(QuerySnapshot<Map<String, dynamic>> snapshot) {
     final list = snapshot.docs
         .map((doc) => Incident.fromMap(doc.id, doc.data()))
