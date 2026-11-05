@@ -10,6 +10,10 @@ import '../services/incident_repository.dart';
 import '../services/storage_service.dart';
 import 'auth_provider.dart';
 
+/// Holds the incident reports for the signed-in person, plus the search and
+/// filters used on the Reports screen. Students get their own reports, staff
+/// get all of them. Screens read from here and never call Firestore or
+/// Storage directly.
 class IncidentProvider extends ChangeNotifier {
   IncidentProvider({
     IncidentRepository? repository,
@@ -29,11 +33,84 @@ class IncidentProvider extends ChangeNotifier {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  String _searchQuery = '';
+  IncidentStatus? _statusFilter;
+  IncidentCategory? _categoryFilter;
+
+  // ---------------------------------------------------------------------
+  // What the screens read
+  // ---------------------------------------------------------------------
+
   List<Incident> get incidents => _incidents;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
 
+  String get searchQuery => _searchQuery;
+  IncidentStatus? get statusFilter => _statusFilter;
+  IncidentCategory? get categoryFilter => _categoryFilter;
+
+  bool get hasActiveFilters =>
+      _searchQuery.trim().isNotEmpty ||
+      _statusFilter != null ||
+      _categoryFilter != null;
+
+  int get totalCount => _incidents.length;
+
+  int countFor(IncidentStatus status) =>
+      _incidents.where((incident) => incident.status == status).length;
+
+  /// The reports that match the current search and filters.
+  List<Incident> get filteredIncidents {
+    final query = _searchQuery.trim().toLowerCase();
+
+    return _incidents.where((incident) {
+      final matchesStatus =
+          _statusFilter == null || incident.status == _statusFilter;
+      final matchesCategory =
+          _categoryFilter == null || incident.category == _categoryFilter;
+      final matchesSearch =
+          query.isEmpty ||
+          incident.title.toLowerCase().contains(query) ||
+          incident.description.toLowerCase().contains(query) ||
+          incident.fullLocation.toLowerCase().contains(query) ||
+          incident.category.label.toLowerCase().contains(query);
+      return matchesStatus && matchesCategory && matchesSearch;
+    }).toList();
+  }
+
+  // ---------------------------------------------------------------------
+  // Search and filters
+  // ---------------------------------------------------------------------
+
+  void setSearchQuery(String value) {
+    _searchQuery = value;
+    notifyListeners();
+  }
+
+  void setStatusFilter(IncidentStatus? status) {
+    _statusFilter = status;
+    notifyListeners();
+  }
+
+  void setCategoryFilter(IncidentCategory? category) {
+    _categoryFilter = category;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _searchQuery = '';
+    _statusFilter = null;
+    _categoryFilter = null;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------
+  // Signing in and out
+  // ---------------------------------------------------------------------
+
+  /// Called by ChangeNotifierProxyProvider whenever the sign-in state changes.
+  /// It starts listening to the right reports, or stops when signed out.
   void updateAuth(AuthStatus status, AppUser? user) {
     // Only a signed-in, verified person gets reports.
     final activeUser = status == AuthStatus.signedIn ? user : null;
@@ -41,6 +118,7 @@ class IncidentProvider extends ChangeNotifier {
         ? null
         : '${activeUser.uid}:${activeUser.role.name}';
 
+    // Nothing changed for this person, so keep the current listener.
     if (key == _boundKey) return;
 
     _boundKey = key;
@@ -48,6 +126,9 @@ class IncidentProvider extends ChangeNotifier {
     _subscription = null;
     _incidents = const [];
     _errorMessage = null;
+    _searchQuery = '';
+    _statusFilter = null;
+    _categoryFilter = null;
     _user = activeUser;
 
     if (activeUser == null) {
@@ -76,7 +157,11 @@ class IncidentProvider extends ChangeNotifier {
     );
   }
 
-  /// Uploads the photo (if any) and saves the report. Returns true on success
+  // ---------------------------------------------------------------------
+  // Writing
+  // ---------------------------------------------------------------------
+
+  /// Uploads the photo (if any) and saves the report. Returns true on success.
   Future<bool> submitReport({
     required String title,
     required String description,
@@ -120,6 +205,7 @@ class IncidentProvider extends ChangeNotifier {
       return true;
     } on FirebaseException catch (e) {
       debugPrint('Submit failed: ${e.plugin} ${e.code} ${e.message}');
+      // Do not leave an orphan photo behind if the report itself failed.
       if (uploaded != null) await _storage.deletePhoto(uploaded.path);
       _errorMessage = _messageForError(e);
       return false;
@@ -134,7 +220,7 @@ class IncidentProvider extends ChangeNotifier {
     }
   }
 
-  /// A student can delete their own report while it is still Submitted
+  /// A student can delete their own report while it is still Submitted.
   Future<bool> deleteReport(Incident incident) async {
     try {
       await _repository.delete(incident.id);

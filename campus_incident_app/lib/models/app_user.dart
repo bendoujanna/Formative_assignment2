@@ -20,6 +20,14 @@ class AppUser {
 
   bool get isStaff => role == UserRole.staff;
 
+  /// Up to two capital letters for an avatar, for example "AB" for Amina Bako.
+  String get initials {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '?';
+    final letters = parts.take(2).map((p) => p[0].toUpperCase());
+    return letters.join();
+  }
+
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) {
     final roleName = map['role'] as String?;
     return AppUser(
