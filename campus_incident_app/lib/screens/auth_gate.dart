@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'home_placeholder_screen.dart';
 import 'login_screen.dart';
+import 'main_shell.dart';
 import 'register_screen.dart';
 import 'verify_email_screen.dart';
 
@@ -24,12 +24,11 @@ class AuthGate extends StatelessWidget {
       case AuthStatus.needsVerification:
         return const VerifyEmailScreen();
       case AuthStatus.signedIn:
-        return const HomePlaceholderScreen();
+        return const MainShell();
     }
   }
 }
 
-/// Switches between the login and the register screens
 class AuthFlow extends StatefulWidget {
   const AuthFlow({super.key});
 

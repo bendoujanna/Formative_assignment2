@@ -10,9 +10,16 @@ import '../models/incident.dart';
 import '../providers/incident_provider.dart';
 import '../widgets/incident_style.dart';
 
-/// The form a student uses to report a campus problem
+/// The form a student uses to report a campus problem.
 class ReportFormScreen extends StatefulWidget {
   const ReportFormScreen({super.key});
+
+  /// Opens the form on top of the current screen.
+  static Future<void> open(BuildContext context) {
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const ReportFormScreen()));
+  }
 
   @override
   State<ReportFormScreen> createState() => _ReportFormScreenState();
@@ -61,7 +68,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     if (source == null) return;
 
     try {
-      // Shrinking the picture keeps uploads fast and storage small
+      // Shrinking the picture keeps uploads fast and storage small.
       final file = await _picker.pickImage(
         source: source,
         maxWidth: 1600,
@@ -217,7 +224,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   }
 
   /// Chips for the six categories. A FormField lets the form validate the
-  /// choice and show an error under the chips if none is selected
+  /// choice and show an error under the chips if none is selected.
   Widget _buildCategoryPicker(ThemeData theme) {
     return FormField<IncidentCategory>(
       validator: (value) =>

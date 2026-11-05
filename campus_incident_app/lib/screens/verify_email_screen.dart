@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 
-/// Shown after registering until the email address is verified
+/// Shown after registering until the email address is verified.
 class VerifyEmailScreen extends StatelessWidget {
   const VerifyEmailScreen({super.key});
 
@@ -13,7 +13,7 @@ class VerifyEmailScreen extends StatelessWidget {
 
     final verified = await auth.checkEmailVerified();
 
-    // When verified, AuthGate moves on to the home screen by itself
+    // When verified, AuthGate moves on to the home screen by itself.
     if (!verified) {
       messenger.showSnackBar(
         SnackBar(
