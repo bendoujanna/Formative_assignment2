@@ -1,8 +1,10 @@
 import 'constants.dart';
 
 /// Form validation rules. Each one returns an error message, or null when
-/// the value is fine, which is what TextFormField expects.
+/// the value is fine, which is what TextFormField expects
 class Validators {
+  // accounts
+
   static String? name(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Name is required';
@@ -41,5 +43,40 @@ class Validators {
     if (value == null || value.isEmpty) return 'Please confirm your password';
     if (value != original) return 'Passwords do not match';
     return null;
+  }
+
+  // incident reports
+
+  static const int titleMin = 3;
+  static const int titleMax = 80;
+  static const int descriptionMin = 10;
+  static const int descriptionMax = 500;
+
+  static String? incidentTitle(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Title is required';
+    if (text.length < titleMin) {
+      return 'Title must be at least $titleMin characters';
+    }
+    if (text.length > titleMax) {
+      return 'Title must be $titleMax characters or fewer';
+    }
+    return null;
+  }
+
+  static String? incidentDescription(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Description is required';
+    if (text.length < descriptionMin) {
+      return 'Please describe the issue in at least $descriptionMin characters';
+    }
+    if (text.length > descriptionMax) {
+      return 'Description must be $descriptionMax characters or fewer';
+    }
+    return null;
+  }
+
+  static String? requiredChoice(Object? value, String message) {
+    return value == null ? message : null;
   }
 }
