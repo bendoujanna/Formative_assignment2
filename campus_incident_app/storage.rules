@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Signed in, email verified, and an ALU address.
+    function isVerifiedAluUser() {
+      return request.auth != null
+          && request.auth.token.email_verified == true
+          && (request.auth.token.email.lower().matches('.*@alustudent[.]com')
+              || request.auth.token.email.lower().matches('.*@alueducation[.]com'));
+    }
+
+    match /incident_photos/{uid}/{fileName} {
+      allow read: if isVerifiedAluUser();
+
+      // Only the owner uploads, and only images smaller than 5 MB.
+      allow create: if isVerifiedAluUser()
+          && request.auth.uid == uid
+          && request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isVerifiedAluUser() && request.auth.uid == uid;
+    }
+  }
+}

@@ -20,8 +20,6 @@ class UserRepository {
     return AppUser.fromMap(uid, data);
   }
 
-  /// Every new account starts as a student. Staff are promoted by hand in the
-  /// Firebase console, and the security rules stop users changing their role
   Future<AppUser> createStudentProfile({
     required String uid,
     required String name,
