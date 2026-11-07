@@ -8,7 +8,8 @@ A role-based mobile application built with Flutter, Provider, and Firebase for t
 
 - **GitHub Repository:** [GitHub repo](https://github.com/bendoujanna/Formative_assignment2.git)
 
-- **Technical Report:** Submitted via Canvas [BendouJannaVitalinaSoeur_Assignment2 (1).pdf](https://github.com/user-attachments/files/34528928/BendouJannaVitalinaSoeur_Assignment2.1.pdf)
+- **Technical Report:** Submitted via Canvas [BendouJannaVitalinaSoeur_Assignment2 (2).pdf](https://github.com/user-attachments/files/34529127/BendouJannaVitalinaSoeur_Assignment2.2.pdf)
+
 
 
 ## Grader Access & Test Credentials
