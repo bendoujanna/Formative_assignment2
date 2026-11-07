@@ -148,17 +148,17 @@ cd campus_incident_app
 
 The repository includes 46 unit and widget tests across 6 test suites under the test/ directory:
 
-**test/validators_test.dart:** ALU email domain rules, password validation, and character limits.
+- **test/validators_test.dart:** ALU email domain rules, password validation, and character limits.
 
-**test/incident_test.dart:** Incident.fromMap deserialization, safe defaults, and automatic Safety urgency.
+- **test/incident_test.dart:** Incident.fromMap deserialization, safe defaults, and automatic Safety urgency.
 
-**test/app_user_test.dart:** UserRole parsing, least-privilege fallback, and avatar initials.
+- **test/app_user_test.dart:** UserRole parsing, least-privilege fallback, and avatar initials.
 
-**test/date_helpers_test.dart:** timeAgo relative date formatting.
+- **test/date_helpers_test.dart:** timeAgo relative date formatting.
 
-**test/incident_provider_test.dart:** Role-scoped stream selection, search/filter logic, staff-only update guard, and inline photo caching.
+- **test/incident_provider_test.dart:** Role-scoped stream selection, search/filter logic, staff-only update guard, and inline photo caching.
 
-**test/widgets_test.dart:** Widget tests for StatusChip, StatusTimeline, SummaryCard, and EmptyState.
+- **test/widgets_test.dart:** Widget tests for StatusChip, StatusTimeline, SummaryCard, and EmptyState.
 
 #### Execute the full test suite with:
 
