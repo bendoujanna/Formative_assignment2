@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Keep these domains the same as AppConstaants.allowedEmailDomains in the app.
+    // Keep these domains the same as AppConstants.allowedEmailDomains in the app.
     function hasAllowedDomain() {
       let email = request.auth.token.email.lower();
       return email.matches('.*@alustudent[.]com')
@@ -30,12 +30,14 @@ service cloud.firestore {
       // You can read your own profile. Staff can read any profile.
       allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
 
-      // A new profile can only be created for yourself, as a student.
+      // @alustudent.com starts as 'student'; @alueducation.com can start as 'staff'.
       allow create: if isSignedIn()
           && request.auth.uid == uid
           && hasAllowedDomain()
           && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
-          && request.resource.data.role == 'student'
+          && (request.resource.data.role == 'student'
+              || (request.resource.data.role == 'staff'
+                  && request.auth.token.email.lower().matches('.*@alueducation[.]com')))
           && request.resource.data.email == request.auth.token.email;
 
       // You can edit your own profile but never change your own role.
@@ -46,6 +48,65 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // The incidents collection is added in the next step.
+    match /incidents/{incidentId} {
+      // Students read only their own reports. Staff read all of them.
+      allow read: if isVerified()
+          && (resource.data.reporterId == request.auth.uid || isStaff());
+
+      // A student creates a report for themselves, always as 'submitted'.
+      allow create: if isVerified()
+          && request.resource.data.keys().hasAll([
+               'title', 'description', 'category', 'location', 'status',
+               'reporterId', 'reporterName', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly([
+               'title', 'description', 'category', 'location', 'locationDetails',
+               'isUrgent', 'photoUrl', 'photoPath', 'hasInlinePhoto', 'status',
+               'reporterId', 'reporterName', 'createdAt', 'updatedAt'])
+          && request.resource.data.reporterId == request.auth.uid
+          && request.resource.data.status == 'submitted'
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 3
+          && request.resource.data.title.size() <= 80
+          && request.resource.data.description is string
+          && request.resource.data.description.size() >= 10
+          && request.resource.data.description.size() <= 500
+          && request.resource.data.category in
+               ['facilities', 'furniture', 'water', 'electricity', 'sanitation', 'safety']
+          && request.resource.data.createdAt == request.time;
+
+      // Only staff can change a report, and only its status fields.
+      allow update: if isStaff()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'staffNote', 'updatedAt', 'inProgressAt',
+                         'resolvedAt', 'updatedByName'])
+          && request.resource.data.status in ['submitted', 'inProgress', 'resolved']
+          && (!('staffNote' in request.resource.data)
+              || request.resource.data.staffNote.size() <= 200);
+
+      // A student can delete their own report while it is still 'submitted'.
+      allow delete: if isVerified()
+          && resource.data.reporterId == request.auth.uid
+          && resource.data.status == 'submitted';
+    }
+
+    // Photos saved in Firestore while Firebase Storage is switched off.
+    // The document id is the id of the report it belongs to.
+    match /photos/{photoId} {
+      // Only the person who took the photo, and staff, can see it.
+      allow read: if isVerified()
+          && (resource.data.ownerId == request.auth.uid || isStaff());
+
+      // Only for yourself, only the expected fields, and kept small.
+      allow create: if isVerified()
+          && request.resource.data.keys().hasOnly(['ownerId', 'data', 'createdAt'])
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.data is string
+          && request.resource.data.data.size() < 700000
+          && request.resource.data.createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if isVerified() && resource.data.ownerId == request.auth.uid;
+    }
   }
 }
