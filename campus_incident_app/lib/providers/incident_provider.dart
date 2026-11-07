@@ -1,167 +1,156 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/constants.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../services/incident_repository.dart';
 import '../services/storage_service.dart';
 import 'auth_provider.dart';
 
-/// Holds the incident reports for the signed-in person, plus the search and
-/// filters used on the Reports screen. Students get their own reports, staff
-/// get all of them. Screens read from here and never call Firestore or
-/// Storage directly.
 class IncidentProvider extends ChangeNotifier {
-  IncidentProvider({
-    IncidentRepository? repository,
-    StorageService? storageService,
-  }) : _repository = repository ?? IncidentRepository(),
-       _storage = storageService ?? StorageService();
+  IncidentProvider({IncidentRepository? repository, StorageService? storage})
+    : _repository = repository ?? IncidentRepository(),
+      _storage = storage ?? StorageService();
 
   final IncidentRepository _repository;
   final StorageService _storage;
 
   StreamSubscription<List<Incident>>? _subscription;
-  AppUser? _user;
-  String? _boundKey;
+  String? _listeningUid;
+  bool? _listeningAsStaff;
 
+  AppUser? _currentUser;
   List<Incident> _incidents = const [];
+  final Map<String, Future<Uint8List?>> _photoCache = {};
+
+  IncidentStatus? _statusFilter;
+  IncidentCategory? _categoryFilter;
+  String _searchQuery = '';
+
   bool _isLoading = false;
   bool _isSubmitting = false;
   String? _errorMessage;
-
-  String _searchQuery = '';
-  IncidentStatus? _statusFilter;
-  IncidentCategory? _categoryFilter;
-
-  // ---------------------------------------------------------------------
-  // What the screens read
-  // ---------------------------------------------------------------------
+  String? _actionErrorMessage;
 
   List<Incident> get incidents => _incidents;
+  IncidentStatus? get statusFilter => _statusFilter;
+  IncidentCategory? get categoryFilter => _categoryFilter;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
-
-  String get searchQuery => _searchQuery;
-  IncidentStatus? get statusFilter => _statusFilter;
-  IncidentCategory? get categoryFilter => _categoryFilter;
-
-  bool get hasActiveFilters =>
-      _searchQuery.trim().isNotEmpty ||
-      _statusFilter != null ||
-      _categoryFilter != null;
+  String? get actionErrorMessage => _actionErrorMessage;
 
   int get totalCount => _incidents.length;
 
   int countFor(IncidentStatus status) =>
-      _incidents.where((incident) => incident.status == status).length;
+      _incidents.where((i) => i.status == status).length;
 
-  /// The reports that match the current search and filters.
+  Incident? findById(String id) {
+    for (final incident in _incidents) {
+      if (incident.id == id) return incident;
+    }
+    return null;
+  }
+
   List<Incident> get filteredIncidents {
     final query = _searchQuery.trim().toLowerCase();
 
     return _incidents.where((incident) {
-      final matchesStatus =
-          _statusFilter == null || incident.status == _statusFilter;
-      final matchesCategory =
-          _categoryFilter == null || incident.category == _categoryFilter;
-      final matchesSearch =
-          query.isEmpty ||
-          incident.title.toLowerCase().contains(query) ||
-          incident.description.toLowerCase().contains(query) ||
+      if (_statusFilter != null && incident.status != _statusFilter) {
+        return false;
+      }
+      if (_categoryFilter != null && incident.category != _categoryFilter) {
+        return false;
+      }
+      if (query.isEmpty) return true;
+
+      return incident.title.toLowerCase().contains(query) ||
           incident.fullLocation.toLowerCase().contains(query) ||
-          incident.category.label.toLowerCase().contains(query);
-      return matchesStatus && matchesCategory && matchesSearch;
+          incident.category.label.toLowerCase().contains(query) ||
+          incident.reporterName.toLowerCase().contains(query);
     }).toList();
   }
 
-  // ---------------------------------------------------------------------
-  // Search and filters
-  // ---------------------------------------------------------------------
+  void updateAuth(AuthStatus status, AppUser? profile) {
+    _currentUser = profile;
 
-  void setSearchQuery(String value) {
-    _searchQuery = value;
-    notifyListeners();
-  }
-
-  void setStatusFilter(IncidentStatus? status) {
-    _statusFilter = status;
-    notifyListeners();
-  }
-
-  void setCategoryFilter(IncidentCategory? category) {
-    _categoryFilter = category;
-    notifyListeners();
-  }
-
-  void clearFilters() {
-    _searchQuery = '';
-    _statusFilter = null;
-    _categoryFilter = null;
-    notifyListeners();
-  }
-
-  // ---------------------------------------------------------------------
-  // Signing in and out
-  // ---------------------------------------------------------------------
-
-  /// Called by ChangeNotifierProxyProvider whenever the sign-in state changes.
-  /// It starts listening to the right reports, or stops when signed out.
-  void updateAuth(AuthStatus status, AppUser? user) {
-    // Only a signed-in, verified person gets reports.
-    final activeUser = status == AuthStatus.signedIn ? user : null;
-    final key = activeUser == null
-        ? null
-        : '${activeUser.uid}:${activeUser.role.name}';
-
-    // Nothing changed for this person, so keep the current listener.
-    if (key == _boundKey) return;
-
-    _boundKey = key;
-    _subscription?.cancel();
-    _subscription = null;
-    _incidents = const [];
-    _errorMessage = null;
-    _searchQuery = '';
-    _statusFilter = null;
-    _categoryFilter = null;
-    _user = activeUser;
-
-    if (activeUser == null) {
-      _isLoading = false;
+    if (status != AuthStatus.signedIn || profile == null) {
+      _stopListening();
+      _incidents = const [];
+      _photoCache.clear();
+      _statusFilter = null;
+      _categoryFilter = null;
+      _searchQuery = '';
+      _errorMessage = null;
+      notifyListeners();
       return;
     }
 
+    if (_listeningUid == profile.uid && _listeningAsStaff == profile.isStaff) {
+      return;
+    }
+
+    _startListening(profile);
+  }
+
+  void _startListening(AppUser user) {
+    _stopListening();
+    _listeningUid = user.uid;
+    _listeningAsStaff = user.isStaff;
     _isLoading = true;
-    final stream = activeUser.isStaff
+    _errorMessage = null;
+    notifyListeners();
+
+    final stream = user.isStaff
         ? _repository.watchAllIncidents()
-        : _repository.watchMyIncidents(activeUser.uid);
+        : _repository.watchMyIncidents(user.uid);
 
     _subscription = stream.listen(
-      (list) {
-        _incidents = list;
+      (items) {
+        _incidents = items;
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
       },
-      onError: (Object error) {
-        debugPrint('Loading reports failed: $error');
+      onError: (_) {
         _isLoading = false;
-        _errorMessage = 'Could not load reports. Please try again later.';
+        _errorMessage = 'Could not load reports. Check your connection.';
         notifyListeners();
       },
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Writing
-  // ---------------------------------------------------------------------
+  void _stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    _listeningUid = null;
+    _listeningAsStaff = null;
+    _isLoading = false;
+  }
 
-  /// Uploads the photo (if any) and saves the report. Returns true on success.
+  void setStatusFilter(IncidentStatus? status) {
+    if (_statusFilter == status) return;
+    _statusFilter = status;
+    notifyListeners();
+  }
+
+  void setCategoryFilter(IncidentCategory? category) {
+    if (_categoryFilter == category) return;
+    _categoryFilter = category;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+    _searchQuery = query;
+    notifyListeners();
+  }
+
   Future<bool> submitReport({
     required String title,
     required String description,
@@ -170,88 +159,109 @@ class IncidentProvider extends ChangeNotifier {
     String locationDetails = '',
     XFile? photo,
   }) async {
-    final user = _user;
-    if (user == null) {
-      _errorMessage = 'You need to be signed in to send a report.';
-      notifyListeners();
-      return false;
-    }
+    final user = _currentUser;
+    if (user == null) return false;
 
-    _errorMessage = null;
     _isSubmitting = true;
+    _actionErrorMessage = null;
     notifyListeners();
 
-    UploadedPhoto? uploaded;
     try {
+      UploadedPhoto? uploaded;
+      Uint8List? inlineBytes;
+
       if (photo != null) {
-        uploaded = await _storage.uploadIncidentPhoto(
-          uid: user.uid,
-          file: photo,
-        );
+        if (AppConstants.useFirebaseStorage) {
+          uploaded = await _storage.uploadIncidentPhoto(
+            uid: user.uid,
+            file: photo,
+          );
+        } else {
+          inlineBytes = await File(photo.path).readAsBytes();
+          if (inlineBytes.lengthInBytes > AppConstants.maxInlinePhotoBytes) {
+            _actionErrorMessage =
+                'That photo is too large. Please pick a smaller image.';
+            _isSubmitting = false;
+            notifyListeners();
+            return false;
+          }
+        }
       }
 
       final draft = Incident.draft(
         title: title.trim(),
         description: description.trim(),
         category: category,
-        location: location,
+        location: location.trim(),
         locationDetails: locationDetails.trim(),
         photoUrl: uploaded?.url,
         photoPath: uploaded?.path,
+        hasInlinePhoto: inlineBytes != null,
         reporterId: user.uid,
         reporterName: user.name,
       );
-      await _repository.create(draft);
-      return true;
-    } on FirebaseException catch (e) {
-      debugPrint('Submit failed: ${e.plugin} ${e.code} ${e.message}');
-      // Do not leave an orphan photo behind if the report itself failed.
-      if (uploaded != null) await _storage.deletePhoto(uploaded.path);
-      _errorMessage = _messageForError(e);
-      return false;
-    } catch (e) {
-      debugPrint('Submit failed: $e');
-      if (uploaded != null) await _storage.deletePhoto(uploaded.path);
-      _errorMessage = 'Something went wrong. Please try again.';
-      return false;
-    } finally {
+
+      await _repository.create(draft, inlinePhoto: inlineBytes);
       _isSubmitting = false;
       notifyListeners();
-    }
-  }
-
-  /// A student can delete their own report while it is still Submitted.
-  Future<bool> deleteReport(Incident incident) async {
-    try {
-      await _repository.delete(incident.id);
-      final photoPath = incident.photoPath;
-      if (photoPath != null) await _storage.deletePhoto(photoPath);
       return true;
-    } on FirebaseException catch (e) {
-      debugPrint('Delete failed: ${e.plugin} ${e.code} ${e.message}');
-      _errorMessage = _messageForError(e);
+    } catch (_) {
+      _actionErrorMessage = 'Could not submit the report. Please try again.';
+      _isSubmitting = false;
       notifyListeners();
       return false;
     }
   }
 
-  String _messageForError(FirebaseException e) {
-    if (e.plugin == 'firebase_storage') {
-      return 'Could not upload the photo. You can remove it and send the report without a photo.';
+  Future<bool> updateStatus(
+    Incident incident,
+    IncidentStatus status, {
+    String? note,
+  }) async {
+    final user = _currentUser;
+    if (user == null || !user.isStaff) return false;
+
+    _actionErrorMessage = null;
+    try {
+      await _repository.updateStatus(
+        incidentId: incident.id,
+        status: status,
+        staffName: user.name,
+        note: note,
+      );
+      return true;
+    } catch (_) {
+      _actionErrorMessage = 'Could not update the status. Please try again.';
+      return false;
     }
-    switch (e.code) {
-      case 'permission-denied':
-        return 'You do not have permission to do this.';
-      case 'unavailable':
-        return 'No connection to the server. Please try again.';
-      default:
-        return 'Something went wrong. Please try again.';
+  }
+
+  Future<bool> deleteReport(Incident incident) async {
+    _actionErrorMessage = null;
+    try {
+      await _repository.delete(incident);
+      if (incident.photoPath != null) {
+        await _storage.deletePhoto(incident.photoPath!);
+      }
+      _photoCache.remove(incident.id);
+      return true;
+    } catch (_) {
+      _actionErrorMessage = 'Could not delete the report. Please try again.';
+      return false;
     }
+  }
+
+  /// Caches the future so scrolling through report cards does not re-fetch
+  Future<Uint8List?> loadInlinePhoto(String incidentId) {
+    return _photoCache.putIfAbsent(
+      incidentId,
+      () => _repository.getInlinePhoto(incidentId),
+    );
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    _stopListening();
     super.dispose();
   }
 }
