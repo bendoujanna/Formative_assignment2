@@ -9,7 +9,6 @@ enum IncidentCategory {
   safety,
 }
 
-/// submitted, then in progress, then resolved.
 enum IncidentStatus { submitted, inProgress, resolved }
 
 extension IncidentCategoryLabel on IncidentCategory {
@@ -56,6 +55,7 @@ class Incident {
     this.isUrgent = false,
     this.photoUrl,
     this.photoPath,
+    this.hasInlinePhoto = false,
     this.status = IncidentStatus.submitted,
     required this.reporterId,
     required this.reporterName,
@@ -75,6 +75,7 @@ class Incident {
     String locationDetails = '',
     String? photoUrl,
     String? photoPath,
+    bool hasInlinePhoto = false,
     required String reporterId,
     required String reporterName,
   }) {
@@ -89,6 +90,7 @@ class Incident {
       isUrgent: category == IncidentCategory.safety,
       photoUrl: photoUrl,
       photoPath: photoPath,
+      hasInlinePhoto: hasInlinePhoto,
       reporterId: reporterId,
       reporterName: reporterName,
       createdAt: DateTime.now(),
@@ -104,6 +106,8 @@ class Incident {
   final bool isUrgent;
   final String? photoUrl;
   final String? photoPath;
+
+  final bool hasInlinePhoto;
   final IncidentStatus status;
   final String reporterId;
   final String reporterName;
@@ -116,7 +120,9 @@ class Incident {
 
   bool get hasPhoto => photoUrl != null && photoUrl!.isNotEmpty;
 
-  /// Location as one line, for example "Student residence, Room 204".
+  bool get hasAnyPhoto => hasPhoto || hasInlinePhoto;
+
+  /// Location as one line, for example "Student residence, Room 204"
   String get fullLocation =>
       locationDetails.isEmpty ? location : '$location, $locationDetails';
 
@@ -135,6 +141,7 @@ class Incident {
       isUrgent: (map['isUrgent'] as bool?) ?? false,
       photoUrl: map['photoUrl'] as String?,
       photoPath: map['photoPath'] as String?,
+      hasInlinePhoto: (map['hasInlinePhoto'] as bool?) ?? false,
       status: _enumByName(
         IncidentStatus.values,
         map['status'] as String?,
@@ -151,6 +158,7 @@ class Incident {
     );
   }
 
+  /// The data written when a student submits a new report.
   Map<String, dynamic> toCreateMap() {
     return {
       'title': title,
@@ -161,6 +169,7 @@ class Incident {
       'isUrgent': isUrgent,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (photoPath != null) 'photoPath': photoPath,
+      if (hasInlinePhoto) 'hasInlinePhoto': true,
       'status': IncidentStatus.submitted.name,
       'reporterId': reporterId,
       'reporterName': reporterName,

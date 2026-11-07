@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/constants.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/user_repository.dart';
@@ -29,107 +30,11 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus get status => _status;
   User? get firebaseUser => _firebaseUser;
   AppUser? get profile => _profile;
+  bool get isStaff => _profile?.isStaff ?? false;
   bool get isBusy => _isBusy;
   String? get errorMessage => _errorMessage;
-  bool get isStaff => _profile?.isStaff ?? false;
-
-  // ---------------------------------------------------------------------
-  // Actions called by the screens
-  // ---------------------------------------------------------------------
-
-  Future<bool> register({
-    required String name,
-    required String email,
-    required String password,
-  }) {
-    return _runAuthAction(() async {
-      final user = await _authService.register(
-        name: name,
-        email: email,
-        password: password,
-      );
-      await _userRepository.createStudentProfile(
-        uid: user.uid,
-        name: name,
-        email: user.email ?? email,
-      );
-    });
-  }
-
-  Future<bool> login({required String email, required String password}) {
-    return _runAuthAction(() async {
-      await _authService.signIn(email: email, password: password);
-    });
-  }
-
-  Future<void> signOut() => _authService.signOut();
-
-  /// Called by the "I have verified my email" button.
-  Future<bool> checkEmailVerified() async {
-    _errorMessage = null;
-    _setBusy(true);
-    try {
-      final user = await _authService.reloadUser();
-      _setBusy(false);
-      await _applyUser(user);
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _messageForCode(e.code);
-    } catch (e) {
-      debugPrint('Email check failed: $e');
-      _errorMessage = 'Could not check your email status. Please try again.';
-    } finally {
-      _setBusy(false);
-    }
-    return _status == AuthStatus.signedIn;
-  }
-
-  Future<bool> resendVerificationEmail() async {
-    _errorMessage = null;
-    _setBusy(true);
-    try {
-      await _authService.sendVerificationEmail();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _messageForCode(e.code);
-      return false;
-    } catch (e) {
-      debugPrint('Resend failed: $e');
-      _errorMessage = 'Could not send the email. Please try again.';
-      return false;
-    } finally {
-      _setBusy(false);
-    }
-  }
-
-  // Internals
-
-  Future<bool> _runAuthAction(Future<void> Function() action) async {
-    _errorMessage = null;
-    _setBusy(true);
-    var succeeded = true;
-
-    try {
-      await action();
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _messageForCode(e.code);
-      succeeded = false;
-    } catch (e) {
-      debugPrint('Auth action failed: $e');
-      _errorMessage = 'Something went wrong. Please try again.';
-      succeeded = false;
-    }
-
-    _setBusy(false);
-    await _applyUser(_authService.currentUser);
-    return succeeded && _errorMessage == null;
-  }
 
   Future<void> _onAuthChanged(User? user) async {
-    if (_isBusy) return;
-    await _applyUser(user);
-  }
-
-  Future<void> _applyUser(User? user) async {
     _firebaseUser = user;
 
     if (user == null) {
@@ -139,58 +44,152 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
 
-    try {
-      // If the profile is missing (for example an interrupted sign-up),
-      // create it now so the person is never locked out.
-      _profile =
-          await _userRepository.getUser(user.uid) ??
-          await _userRepository.createStudentProfile(
-            uid: user.uid,
-            name: user.displayName ?? _nameFromEmail(user.email),
-            email: user.email ?? '',
-          );
-      _status = user.emailVerified
-          ? AuthStatus.signedIn
-          : AuthStatus.needsVerification;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Profile load failed: $e');
-      _errorMessage =
-          'Could not load your profile. Check your connection and try again.';
+    if (!_hasAllowedDomain(user.email)) {
       await _authService.signOut();
+      _errorMessage = 'Please sign in with your ALU email address.';
+      _status = AuthStatus.signedOut;
+      notifyListeners();
+      return;
     }
+
+    if (!user.emailVerified) {
+      _status = AuthStatus.needsVerification;
+      notifyListeners();
+      return;
+    }
+
+    await _loadOrCreateProfile(user);
+  }
+
+  Future<void> _loadOrCreateProfile(User user) async {
+    try {
+      var userProfile = await _userRepository.getUser(user.uid);
+      userProfile ??= await _userRepository.createStudentProfile(
+        uid: user.uid,
+        name: (user.displayName?.trim().isNotEmpty ?? false)
+            ? user.displayName!.trim()
+            : user.email!.split('@').first,
+        email: user.email!.toLowerCase(),
+      );
+      _profile = userProfile;
+      _status = AuthStatus.signedIn;
+    } catch (_) {
+      _errorMessage = 'Could not load your profile.';
+      _status = AuthStatus.signedOut;
+    }
+    notifyListeners();
+  }
+
+  bool _hasAllowedDomain(String? email) {
+    if (email == null || !email.contains('@')) return false;
+    final domain = email.toLowerCase().split('@').last;
+    return AppConstants.allowedEmailDomains.contains(domain);
+  }
+
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    _setBusy(true);
+    try {
+      final user = await _authService.register(
+        name: name,
+        email: email,
+        password: password,
+      );
+      await _userRepository.createStudentProfile(
+        uid: user.uid,
+        name: name,
+        email: email,
+      );
+      _setBusy(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _friendlyAuthError(e);
+      _setBusy(false);
+      return false;
+    } catch (_) {
+      _errorMessage = 'Could not create your account. Please try again.';
+      _setBusy(false);
+      return false;
+    }
+  }
+
+  Future<bool> login({required String email, required String password}) async {
+    _setBusy(true);
+    try {
+      await _authService.signIn(email: email, password: password);
+      _setBusy(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _friendlyAuthError(e);
+      _setBusy(false);
+      return false;
+    } catch (_) {
+      _errorMessage = 'Login failed. Please try again.';
+      _setBusy(false);
+      return false;
+    }
+  }
+
+  Future<bool> checkEmailVerified() async {
+    _setBusy(true);
+    try {
+      final refreshed = await _authService.reloadUser();
+      _firebaseUser = refreshed;
+      if (refreshed != null && refreshed.emailVerified) {
+        await _loadOrCreateProfile(refreshed);
+        _setBusy(false);
+        return true;
+      }
+      _errorMessage = 'Your email is not verified yet.';
+      _setBusy(false);
+      return false;
+    } catch (_) {
+      _errorMessage = 'Could not check verification status.';
+      _setBusy(false);
+      return false;
+    }
+  }
+
+  Future<bool> resendVerificationEmail() async {
+    _setBusy(true);
+    try {
+      await _authService.sendVerificationEmail();
+      _setBusy(false);
+      return true;
+    } catch (_) {
+      _errorMessage = 'Please wait a moment before requesting another email.';
+      _setBusy(false);
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    await _authService.signOut();
   }
 
   void _setBusy(bool value) {
     _isBusy = value;
+    if (value) _errorMessage = null;
     notifyListeners();
   }
 
-  String _nameFromEmail(String? email) {
-    final local = (email ?? '').split('@').first;
-    return local.isEmpty ? 'Student' : local;
-  }
-
-  String _messageForCode(String code) {
-    switch (code) {
-      case 'invalid-email':
-        return 'That email address is not valid.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
+  String _friendlyAuthError(FirebaseAuthException e) {
+    switch (e.code) {
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
         return 'Incorrect email or password.';
       case 'email-already-in-use':
-        return 'An account with this email already exists.';
+        return 'An account with this ALU email already exists.';
       case 'weak-password':
-        return 'That password is too weak. Use at least 8 characters.';
+        return 'Password must be at least 8 characters.';
       case 'too-many-requests':
-        return 'Too many attempts. Please wait a moment and try again.';
-      case 'network-request-failed':
-        return 'No internet connection. Please try again.';
+        return 'Too many attempts. Please try again in a few minutes.';
       default:
-        return 'Authentication failed. Please try again.';
+        return e.message ?? 'Authentication failed.';
     }
   }
 
