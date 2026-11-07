@@ -7,9 +7,9 @@ import '../providers/incident_provider.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/incident_style.dart';
 import '../widgets/report_card.dart';
+import 'incident_details_screen.dart';
 
-/// The second tab: every report the person may see, with search and filters.
-/// Students see their own reports. Staff see all of them.
+/// Students see their own reports. Staff see all of them
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -101,7 +101,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _buildStatusChips(incidents),
           if (incidents.categoryFilter != null)
             _buildCategoryChip(incidents, incidents.categoryFilter!),
-          // Expanded gives the list all the remaining height.
           Expanded(child: _buildList(incidents, isStaff)),
         ],
       ),
@@ -128,13 +127,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   },
                 ),
         ),
-        // onChanged runs on every keystroke, so the list filters as you type.
         onChanged: incidents.setSearchQuery,
       ),
     );
   }
 
-  /// All, Submitted, In Progress, Resolved in a row that scrolls sideways.
+  /// All, Submitted, In Progress, Resolved in a row that scrolls sideways
   Widget _buildStatusChips(IncidentProvider incidents) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -196,7 +194,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final reports = incidents.filteredIncidents;
 
     if (reports.isEmpty) {
-      // Two different empty states: nothing exists, or nothing matches.
+      // Two different empty states: nothing exists, or nothing matches
       final noReportsAtAll = incidents.incidents.isEmpty;
       return EmptyState(
         icon: noReportsAtAll ? Icons.inbox_outlined : Icons.search_off,
@@ -208,12 +206,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
     }
 
-    // ListView.builder only builds the cards that are on screen.
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: reports.length,
       itemBuilder: (context, index) {
-        return ReportCard(incident: reports[index], showReporter: isStaff);
+        final incident = reports[index];
+        return ReportCard(
+          incident: incident,
+          showReporter: isStaff,
+          onTap: () => IncidentDetailsScreen.open(context, incident.id),
+        );
       },
     );
   }

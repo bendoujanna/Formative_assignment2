@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/theme/app_theme.dart';
 import '../models/incident.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 
-/// The third tab: who you are, a few numbers, and the log out button.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -84,6 +84,7 @@ class ProfileScreen extends StatelessWidget {
                 child: _StatBox(
                   value: incidents.totalCount,
                   label: auth.isStaff ? 'All reports' : 'My reports',
+                  color: AppTheme.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -91,6 +92,7 @@ class ProfileScreen extends StatelessWidget {
                 child: _StatBox(
                   value: incidents.countFor(IncidentStatus.inProgress),
                   label: 'In progress',
+                  color: const Color(0xFF2D5BD6),
                 ),
               ),
               const SizedBox(width: 12),
@@ -98,6 +100,7 @@ class ProfileScreen extends StatelessWidget {
                 child: _StatBox(
                   value: incidents.countFor(IncidentStatus.resolved),
                   label: 'Resolved',
+                  color: const Color(0xFF1B7A3E),
                 ),
               ),
             ],
@@ -121,10 +124,15 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _StatBox extends StatelessWidget {
-  const _StatBox({required this.value, required this.label});
+  const _StatBox({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
 
   final int value;
   final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +141,7 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
+        color: color.withAlpha(28),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -142,7 +150,7 @@ class _StatBox extends StatelessWidget {
             '$value',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimaryContainer,
+              color: color,
             ),
           ),
           const SizedBox(height: 2),

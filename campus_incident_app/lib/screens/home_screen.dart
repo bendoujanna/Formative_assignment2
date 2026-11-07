@@ -8,13 +8,12 @@ import '../providers/incident_provider.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/report_card.dart';
 import '../widgets/summary_card.dart';
+import 'incident_details_screen.dart';
 import 'report_form_screen.dart';
 
-/// The first tab: a greeting, a call to action, a summary and recent reports.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.onOpenReports});
 
-  /// Switches the shell to the Reports tab.
   final VoidCallback onOpenReports;
 
   @override
@@ -85,7 +84,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          _buildRecent(incidents, recent, isStaff),
+          _buildRecent(context, incidents, recent, isStaff),
         ],
       ),
     );
@@ -197,6 +196,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildRecent(
+    BuildContext context,
     IncidentProvider incidents,
     List<Incident> recent,
     bool isStaff,
@@ -224,13 +224,17 @@ class HomeScreen extends StatelessWidget {
     return Column(
       children: [
         for (final incident in recent)
-          ReportCard(incident: incident, showReporter: isStaff),
+          ReportCard(
+            incident: incident,
+            showReporter: isStaff,
+            onTap: () => IncidentDetailsScreen.open(context, incident.id),
+          ),
       ],
     );
   }
 }
 
-/// The big purple card at the top of the home screen.
+/// The big purple card at the top of the home screen
 class _HeroBanner extends StatelessWidget {
   const _HeroBanner({
     required this.title,

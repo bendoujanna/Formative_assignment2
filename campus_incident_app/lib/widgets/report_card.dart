@@ -1,11 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/date_helpers.dart';
 import '../models/incident.dart';
+import '../providers/incident_provider.dart';
 import 'incident_style.dart';
 import 'status_chip.dart';
 
-/// One report as a card: picture or category icon, title, place, time, status.
 class ReportCard extends StatelessWidget {
   const ReportCard({
     super.key,
@@ -15,10 +18,7 @@ class ReportCard extends StatelessWidget {
   });
 
   final Incident incident;
-
-  /// Staff see who sent the report. Students only see their own reports.
   final bool showReporter;
-
   final VoidCallback? onTap;
 
   static const double _thumbSize = 64;
@@ -45,8 +45,6 @@ class ReportCard extends StatelessWidget {
             children: [
               _buildThumbnail(theme),
               const SizedBox(width: 12),
-              // Expanded gives the text the space left after the picture and
-              // the status chip, so long titles are cut with dots, not overflow.
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,9 +131,15 @@ class ReportCard extends StatelessWidget {
           width: _thumbSize,
           height: _thumbSize,
           fit: BoxFit.cover,
-          // If the picture cannot load, fall back to the category icon.
           errorBuilder: (context, error, stackTrace) => _iconBox(theme),
         ),
+      );
+    }
+    if (incident.hasInlinePhoto) {
+      return _InlineThumbnail(
+        incidentId: incident.id,
+        size: _thumbSize,
+        fallback: _iconBox(theme),
       );
     }
     return _iconBox(theme);
@@ -154,6 +158,66 @@ class ReportCard extends StatelessWidget {
         color: theme.colorScheme.primary,
         size: 28,
       ),
+    );
+  }
+}
+
+class _InlineThumbnail extends StatefulWidget {
+  const _InlineThumbnail({
+    required this.incidentId,
+    required this.size,
+    required this.fallback,
+  });
+
+  final String incidentId;
+  final double size;
+  final Widget fallback;
+
+  @override
+  State<_InlineThumbnail> createState() => _InlineThumbnailState();
+}
+
+class _InlineThumbnailState extends State<_InlineThumbnail> {
+  Future<Uint8List?>? _photoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoto();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.incidentId != widget.incidentId) {
+      _loadPhoto();
+    }
+  }
+
+  void _loadPhoto() {
+    _photoFuture = context.read<IncidentProvider>().loadInlinePhoto(
+      widget.incidentId,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: _photoFuture,
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null) return widget.fallback;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.memory(
+            bytes,
+            width: widget.size,
+            height: widget.size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => widget.fallback,
+          ),
+        );
+      },
     );
   }
 }

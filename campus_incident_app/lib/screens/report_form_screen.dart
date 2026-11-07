@@ -10,11 +10,9 @@ import '../models/incident.dart';
 import '../providers/incident_provider.dart';
 import '../widgets/incident_style.dart';
 
-/// The form a student uses to report a campus problem.
 class ReportFormScreen extends StatefulWidget {
   const ReportFormScreen({super.key});
 
-  /// Opens the form on top of the current screen.
   static Future<void> open(BuildContext context) {
     return Navigator.of(
       context,
@@ -68,11 +66,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     if (source == null) return;
 
     try {
-      // Shrinking the picture keeps uploads fast and storage small.
       final file = await _picker.pickImage(
         source: source,
-        maxWidth: 1600,
-        imageQuality: 80,
+        maxWidth: AppConstants.photoMaxWidth,
+        imageQuality: AppConstants.photoQuality,
       );
       if (file != null && mounted) setState(() => _photo = file);
     } catch (_) {
@@ -84,7 +81,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   }
 
   Future<void> _submit() async {
-    // Stop here and show the red messages if any field is invalid.
     if (!_formKey.currentState!.validate()) return;
 
     final provider = context.read<IncidentProvider>();
@@ -109,7 +105,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            provider.errorMessage ?? 'Could not submit the report.',
+            provider.actionErrorMessage ?? 'Could not submit the report.',
           ),
         ),
       );
@@ -223,8 +219,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     );
   }
 
-  /// Chips for the six categories. A FormField lets the form validate the
-  /// choice and show an error under the chips if none is selected.
   Widget _buildCategoryPicker(ThemeData theme) {
     return FormField<IncidentCategory>(
       validator: (value) =>
@@ -233,22 +227,58 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.25,
               children: [
                 for (final category in IncidentCategory.values)
-                  ChoiceChip(
-                    avatar: Icon(categoryIcon(category), size: 18),
-                    label: Text(category.label),
+                  _CategoryTile(
+                    category: category,
                     selected: field.value == category,
-                    onSelected: (_) {
+                    onTap: () {
                       field.didChange(category);
                       setState(() => _category = category);
                     },
                   ),
               ],
             ),
+            if (_category == IncidentCategory.safety)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.error.withAlpha(24),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 18,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Safety reports are automatically flagged as urgent.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (field.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 8, left: 12),
@@ -304,6 +334,56 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IncidentCategory category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: selected ? colors.primary : colors.outlineVariant,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              categoryIcon(category),
+              color: selected ? colors.primary : colors.onSurfaceVariant,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              category.label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: selected ? colors.onPrimaryContainer : colors.onSurface,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

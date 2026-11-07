@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'report_form_screen.dart';
@@ -19,9 +21,9 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isStaff = context.select<AuthProvider, bool>((auth) => auth.isStaff);
+
     return Scaffold(
-      // IndexedStack keeps every tab alive, so a search typed on the Reports
-      // tab is still there when you come back to it.
       body: IndexedStack(
         index: _index,
         children: [
@@ -32,6 +34,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: _BottomBar(
         currentIndex: _index,
+        showReportButton: !isStaff,
         onTabSelected: _goToTab,
         onReportPressed: () => ReportFormScreen.open(context),
       ),
@@ -42,11 +45,13 @@ class _MainShellState extends State<MainShell> {
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.currentIndex,
+    required this.showReportButton,
     required this.onTabSelected,
     required this.onReportPressed,
   });
 
   final int currentIndex;
+  final bool showReportButton;
   final ValueChanged<int> onTabSelected;
   final VoidCallback onReportPressed;
 
@@ -69,7 +74,6 @@ class _BottomBar extends StatelessWidget {
         top: false,
         child: SizedBox(
           height: 72,
-          // Four equal slots: Home, Reports, the Report button, Profile.
           child: Row(
             children: [
               Expanded(
@@ -90,7 +94,8 @@ class _BottomBar extends StatelessWidget {
                   onTap: () => onTabSelected(1),
                 ),
               ),
-              Expanded(child: _ReportButton(onPressed: onReportPressed)),
+              if (showReportButton)
+                Expanded(child: _ReportButton(onPressed: onReportPressed)),
               Expanded(
                 child: _NavItem(
                   icon: Icons.person_outline,
@@ -150,7 +155,6 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// The round purple button in the middle of the bar.
 class _ReportButton extends StatelessWidget {
   const _ReportButton({required this.onPressed});
 
