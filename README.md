@@ -74,45 +74,57 @@ Categorized Incident Submission: 3-column interactive category grid covering Fac
 ## Directory Structure
 
 ```
-lib/
-├── main.dart                        # App entry point, Firebase init, MultiProvider setup
-├── firebase_options.dart            # Platform-specific Firebase configuration
-├── core/
-│   ├── constants.dart               # Allowed domains, collection names, locations, storage toggle
-│   ├── date_helpers.dart            # Relative timestamp formatting (timeAgo)
-│   ├── validators.dart              # Account & incident form validators
-│   └── theme/
-│       └── app_theme.dart           # Material 3 color scheme & component styling
-├── models/
-│   ├── app_user.dart                # AppUser model & UserRole enum (student, staff)
-│   └── incident.dart                # Incident model, category/status enums, serialization
-├── providers/
-│   ├── auth_provider.dart           # Auth state machine, domain & verification checks
-│   └── incident_provider.dart       # Firestore stream subscriptions, filters, CRUD, photo cache
-├── services/
-│   ├── auth_service.dart            # FirebaseAuth wrapper & forced JWT token refresh
-│   ├── incident_repository.dart     # Firestore CRUD, atomic batch writes, status timestamps
-│   ├── storage_service.dart         # Cloudinary REST uploader
-│   └── user_repository.dart         # User profile lookup & domain-based role assignment
-├── screens/
-│   ├── auth_gate.dart               # Reactive router switching on AuthStatus
-│   ├── login_screen.dart            # Email/password sign-in screen
-│   ├── register_screen.dart         # ALU account registration screen
-│   ├── verify_email_screen.dart     # Verification check & resend gate
-│   ├── main_shell.dart              # IndexedStack bottom navigation shell
-│   ├── home_screen.dart             # Role-aware dashboard, summary cards, recent reports
-│   ├── reports_screen.dart          # Searchable, filterable incident list
-│   ├── report_form_screen.dart      # New incident report form with category grid & photo picker
-│   ├── incident_details_screen.dart # Full report view, timeline, delete & staff status sheet
-│   └── profile_screen.dart          # User profile badge, color-coded stats, logout
-└── widgets/
-    ├── empty_state.dart             # Reusable empty/error state view
-    ├── incident_photo.dart          # Network/inline photo loader with full-screen zoom
-    ├── incident_style.dart          # Category icons & status color mappings
-    ├── report_card.dart             # Incident summary card with thumbnail & status chip
-    ├── status_chip.dart             # Rounded status pill badge
-    ├── status_timeline.dart         # 3-step visual progress timeline
-    └── summary_card.dart            # Interactive dashboard metric card
+Formative_assignment2/
+├── lib/
+│   ├── main.dart                        # App entry point, Firebase init, MultiProvider setup
+│   ├── firebase_options.dart            # Platform-specific Firebase configuration
+│   ├── core/
+│   │   ├── constants.dart               # Allowed domains, collection names, locations, storage toggle
+│   │   ├── date_helpers.dart            # Relative timestamp formatting (timeAgo)
+│   │   ├── validators.dart              # Account & incident form validators
+│   │   └── theme/
+│   │       └── app_theme.dart           # Material 3 color scheme & component styling
+│   ├── models/
+│   │   ├── app_user.dart                # AppUser model & UserRole enum (student, staff)
+│   │   └── incident.dart                # Incident model, category/status enums, serialization
+│   ├── providers/
+│   │   ├── auth_provider.dart           # Auth state machine, domain & verification checks
+│   │   └── incident_provider.dart       # Firestore stream subscriptions, filters, CRUD, photo cache
+│   ├── services/
+│   │   ├── auth_service.dart            # FirebaseAuth wrapper & forced JWT token refresh
+│   │   ├── incident_repository.dart     # Firestore CRUD, atomic batch writes, status timestamps
+│   │   ├── storage_service.dart         # Cloudinary REST uploader
+│   │   └── user_repository.dart         # User profile lookup & domain-based role assignment
+│   ├── screens/
+│   │   ├── auth_gate.dart               # Reactive router switching on AuthStatus
+│   │   ├── login_screen.dart            # Email/password sign-in screen
+│   │   ├── register_screen.dart         # ALU account registration screen
+│   │   ├── verify_email_screen.dart     # Verification check & resend gate
+│   │   ├── main_shell.dart              # IndexedStack bottom navigation shell
+│   │   ├── home_screen.dart             # Role-aware dashboard, summary cards, recent reports
+│   │   ├── reports_screen.dart          # Searchable, filterable incident list
+│   │   ├── report_form_screen.dart      # New incident report form with category grid & photo picker
+│   │   ├── incident_details_screen.dart # Full report view, timeline, delete & staff status sheet
+│   │   └── profile_screen.dart          # User profile badge, color-coded stats, logout
+│   └── widgets/
+│       ├── empty_state.dart             # Reusable empty/error state view
+│       ├── incident_photo.dart          # Network/inline photo loader with full-screen zoom
+│       ├── incident_style.dart          # Category icons & status color mappings
+│       ├── report_card.dart             # Incident summary card with thumbnail & status chip
+│       ├── status_chip.dart             # Rounded status pill badge
+│       ├── status_timeline.dart         # 3-step visual progress timeline
+│       └── summary_card.dart            # Interactive dashboard metric card
+├── test/
+│   ├── app_user_test.dart               # Unit tests for AppUser role parsing & avatar initials
+│   ├── date_helpers_test.dart           # Unit tests for relative time formatting (timeAgo)
+│   ├── incident_provider_test.dart      # Unit tests for streams, filters, RBAC & photo caching
+│   ├── incident_test.dart               # Unit tests for Incident serialization & Safety urgency
+│   ├── validators_test.dart             # Unit tests for ALU email & form field validation
+│   └── widgets_test.dart                # Widget tests for StatusChip, StatusTimeline, SummaryCard & EmptyState
+├── firestore.rules                      # Cloud Firestore declarative RBAC & schema security rules
+├── storage.rules                        # Firebase Storage security rules
+├── pubspec.yaml                         # Project dependencies & asset declarations
+└── README.md                            # Project documentation & setup guide
 ```
 
 ## Getting Started & Installation
