@@ -20,25 +20,22 @@ class UserRepository {
     return AppUser.fromMap(uid, data);
   }
 
-  /// Assigns 'staff' automatically for @alueducation.com emails and 'student'
-  /// for @alustudent.com emails.
+  /// Every new account starts with the 'student' role. Staff accounts are
+  /// promoted manually in the Firebase Console.
   Future<AppUser> createStudentProfile({
     required String uid,
     required String name,
     required String email,
   }) async {
-    final role = email.trim().toLowerCase().endsWith('@alueducation.com')
-        ? UserRole.staff
-        : UserRole.student;
-
     await _users.doc(uid).set({
       'name': name,
       'email': email,
-      'role': role.name,
+      'role': UserRole.student.name,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
     final created = await getUser(uid);
-    return created ?? AppUser(uid: uid, name: name, email: email, role: role);
+    return created ??
+        AppUser(uid: uid, name: name, email: email, role: UserRole.student);
   }
 }

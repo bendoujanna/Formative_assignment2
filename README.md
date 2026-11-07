@@ -14,11 +14,12 @@ Technical Report: Submitted via Canvas (BendouJannaVitalinaSoeur_Assignment2.pdf
 
 Access to the application is restricted to verified ALU email domains (@alustudent.com and @alueducation.com).
 
-#### Automatic Role Provisioning
 
-- **@alueducation.com** emails: Automatically assigned the staff role upon registration and email verification.
+#### Role Provisioning (Least Privilege)
 
-- **@alustudent.com** emails: Automatically assigned the student role upon registration and email verification.
+- **New Registrations:** Every new account registered with a verified ALU email (@alustudent.com or @alueducation.com) starts with the student role by default so any tester signing up can immediately test submitting and tracking incident reports.
+
+- **Staff Accounts:** Authorized staff accounts are promoted in the Firebase Console (users/{uid}.role = 'staff'), and Firestore security rules strictly prevent users from creating or elevating their own role from the client.
 
 #### Pre-Verified Demo Accounts (Immediate Login)
 
@@ -140,7 +141,7 @@ Formative_assignment2/
 **1. Clone the Repository**
 
 ```
-git clone <your-github-repo-url>
+git clone <github-repo-url>
 cd campus_incident_app
 ```
 

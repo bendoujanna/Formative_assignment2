@@ -23,7 +23,6 @@ class StorageService {
 
   final http.Client _client;
 
-  // TODO: Replace with your Cloudinary cloud name and unsigned upload preset
   static const String _cloudName = 'dud6g4xw';
   static const String _uploadPreset = 'campus_incidents_unsigned';
 
